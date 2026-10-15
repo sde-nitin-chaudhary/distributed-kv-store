@@ -1,4 +1,4 @@
-name: Build & Test
+name: Build, Test & Sanitizers (CI)
 
 on:
   push:
@@ -8,22 +8,23 @@ on:
 
 jobs:
   build-and-test:
+    name: Ubuntu GCC Build & Tests
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up build environment
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential python3
 
     - name: Configure CMake
-      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 
-    - name: Build executables
-      run: cmake --build build --config Release -j $(nproc)
+    - name: Build all targets
+      run: cmake --build build --config Debug -j $(nproc)
 
     - name: Run Cache Unit Tests
       run: ./build/test_cache
@@ -31,11 +32,60 @@ jobs:
     - name: Run Consistent Hashing Unit Tests
       run: ./build/test_hash
 
-    - name: Start Server & Test Integration
+    - name: Run RESP2 Parser Unit Tests
+      run: ./build/test_resp
+
+    - name: Run Write-Ahead Log (WAL) Tests
+      run: ./build/test_wal
+
+    - name: Start Cluster & Benchmark Smoke Test
       run: |
-        ./build/kv_server --port 6380 --capacity 10000 &
-        SERVER_PID=$!
+        mkdir -p ./data
+        # Launch 3-node cluster with replication factor 2 and explicit shared cluster-secret
+        ./build/kv_server --port 6380 --node-id node-1 --peers node-1@127.0.0.1:6380,node-2@127.0.0.1:6381,node-3@127.0.0.1:6382 --replication-factor 2 --cluster-secret ci-cluster-secret-auth --aof-path ./data/node1.aof &
+        PID1=$!
+        ./build/kv_server --port 6381 --node-id node-2 --peers node-1@127.0.0.1:6380,node-2@127.0.0.1:6381,node-3@127.0.0.1:6382 --replication-factor 2 --cluster-secret ci-cluster-secret-auth --aof-path ./data/node2.aof &
+        PID2=$!
+        ./build/kv_server --port 6382 --node-id node-3 --peers node-1@127.0.0.1:6380,node-2@127.0.0.1:6381,node-3@127.0.0.1:6382 --replication-factor 2 --cluster-secret ci-cluster-secret-auth --aof-path ./data/node3.aof &
+        PID3=$!
         sleep 2
-        # Run python benchmark smoke test
-        python3 benchmark/benchmark.py --port 6380 --clients 4 --ops 2000 --pipeline 25
-        kill $SERVER_PID
+
+        # Run benchmark across node 1 in cluster proxy mode
+        python3 benchmark/benchmark.py --port 6380 --clients 4 --ops 4000 --pipeline 25
+
+        kill $PID1 $PID2 $PID3
+
+  sanitizers:
+    name: Clang AddressSanitizer & UndefinedBehaviorSanitizer
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Clang & CMake
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake clang
+
+    - name: Configure with ASan & UBSan
+      run: |
+        cmake -B build-asan -S . \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+
+    - name: Build Sanitized Targets
+      run: cmake --build build-asan -j $(nproc)
+
+    - name: Run ASan Cache Tests
+      run: ./build-asan/test_cache
+
+    - name: Run ASan Hash Tests
+      run: ./build-asan/test_hash
+
+    - name: Run ASan RESP Tests
+      run: ./build-asan/test_resp
+
+    - name: Run ASan WAL Tests
+      run: ./build-asan/test_wal

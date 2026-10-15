@@ -34,9 +34,9 @@ def worker_bench(host: str, port: int, num_ops: int, pipeline_size: int):
     for it in range(iterations):
         t0 = time.perf_counter()
         s.sendall(set_chunk)
-        # Read pipeline responses
+        # Read pipeline responses: SET returns +OK\r\n (1 CRLF per command)
         resp = b""
-        while len(resp.split(b"\r\n")) - 1 < pipeline_size:
+        while resp.count(b"\r\n") < pipeline_size:
             chunk = s.recv(4096)
             if not chunk: break
             resp += chunk
@@ -44,8 +44,9 @@ def worker_bench(host: str, port: int, num_ops: int, pipeline_size: int):
         
         t0 = time.perf_counter()
         s.sendall(get_chunk)
+        # Read pipeline responses: GET returns BulkString $len\r\nval\r\n (2 CRLFs per command)
         resp = b""
-        while len(resp.split(b"\r\n")) - 1 < pipeline_size:
+        while resp.count(b"\r\n") < pipeline_size * 2:
             chunk = s.recv(4096)
             if not chunk: break
             resp += chunk

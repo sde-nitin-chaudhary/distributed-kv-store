@@ -11,6 +11,7 @@ set(SERVER_SOURCES
     src/resp_parser.cpp
     src/lru_cache.cpp
     src/consistent_hash.cpp
+    src/wal.cpp
     src/kv_server.cpp
     src/main.cpp
 )
@@ -34,7 +35,29 @@ add_executable(test_hash
     tests/test_hash.cpp
 )
 
-if (NOT WIN32)
+add_executable(test_resp
+    src/resp_parser.cpp
+    tests/test_resp.cpp
+)
+
+add_executable(test_wal
+    src/wal.cpp
+    src/resp_parser.cpp
+    src/lru_cache.cpp
+    tests/test_wal.cpp
+)
+
+if (WIN32)
+    target_link_libraries(test_wal ws2_32)
+else()
     target_link_libraries(test_cache pthread)
     target_link_libraries(test_hash pthread)
+    target_link_libraries(test_resp pthread)
+    target_link_libraries(test_wal pthread)
 endif()
+
+enable_testing()
+add_test(NAME test_cache COMMAND test_cache)
+add_test(NAME test_hash COMMAND test_hash)
+add_test(NAME test_resp COMMAND test_resp)
+add_test(NAME test_wal COMMAND test_wal)

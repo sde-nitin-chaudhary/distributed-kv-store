@@ -32,6 +32,13 @@ out/
 kv_server
 test_cache
 test_hash
+test_resp
+test_wal
+
+# Persistent storage & logs
+*.aof
+*.log
+data/
 
 # IDE files
 .vscode/
@@ -42,3 +49,10 @@ test_hash
 # OS files
 .DS_Store
 Thumbs.db
+
+# Agent configurations & local developer checklists
+AGENTS.md
+.agents/
+.gemini/
+PRE_PUBLISH_CHECKLIST.md
+
