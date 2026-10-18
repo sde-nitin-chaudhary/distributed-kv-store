@@ -11,11 +11,11 @@ Designed to handle **40,000+ QPS** with sub-millisecond query latency under conc
 
 ---
 
-## 🎧 Read Aloud Quick Intro
+## Quick Intro
 
-This project is a high-throughput, distributed in-memory key-value store and cache engineered in modern C++ seventeen. It implements the Redis serialization protocol version two from scratch using zero-copy string views for fast wire parsing.
+A high-throughput, distributed in-memory key-value store and cache engineered in **modern C++17**. It implements the **Redis RESP2 serialization protocol** from scratch using zero-copy `std::string_view` parsing for minimal deserialization overhead.
 
-The cache engine provides thread-safe constant time Least Recently Used and Least Frequently Used eviction policies, partitioned across 64 lock-striped shards with hardware cache-line alignment to eliminate lock contention. For horizontal clustering, a consistent hashing ring with 150 virtual nodes per physical instance and official Redis CRC16 16,384 hash slots distributes data evenly across nodes with automatic peer forwarding. Under stress tests, this system serves over forty thousand queries per second with sub-fifteen millisecond latency.
+The cache engine provides thread-safe constant-time **LRU (Least Recently Used)** and **LFU (Least Frequently Used)** eviction policies, partitioned across **64 lock-striped shards** with hardware cache-line alignment (`alignas(64)`) to eliminate lock contention. For horizontal clustering, a **consistent hashing ring** with 150 virtual nodes per physical instance and official Redis CRC16 16,384 hash slots distributes data evenly across nodes with automatic peer forwarding. Under stress benchmarks, the system serves **40,000+ queries per second** with sub-millisecond p99 latency.
 
 ---
 
@@ -161,7 +161,7 @@ aof_syncs:1
 
 ---
 
-## ⚡ Running the 40,000+ QPS Benchmark
+## ⚡ Performance & Benchmarks
 
 Run the included multi-threaded load generator:
 
